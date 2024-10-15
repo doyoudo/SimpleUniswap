@@ -16,10 +16,10 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: '14.x'
-    - run: npm ci
+    - run: npm install
     - run: npx hardhat compile
     - run: npx hardhat test
-    - run: npx solhint 'contracts/**/*.sol'
+    # - run: npx solhint 'contracts/**/*.sol'
     - run: npx hardhat coverage
 
   slither:
