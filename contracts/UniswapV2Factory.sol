@@ -9,7 +9,16 @@ contract UniswapV2Factory {
 
     event PairCreated(address indexed token0, address indexed token1, address pair, uint);
 
-    function createPair(address tokenA, address tokenB) external returns (address pair) {
+    bool private locked;
+
+    modifier lock() {
+        require(!locked, "UniswapV2Factory: LOCKED");
+        locked = true;
+        _;
+        locked = false;
+    }
+
+    function createPair(address tokenA, address tokenB) external lock returns (address pair) {
         require(tokenA != tokenB, 'UniswapV2: IDENTICAL_ADDRESSES');
         (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
         require(token0 != address(0), 'UniswapV2: ZERO_ADDRESS');

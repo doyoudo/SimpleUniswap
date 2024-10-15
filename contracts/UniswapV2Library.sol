@@ -1,39 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
+
 library UniswapV2Library {
-    // 内部实现SafeMath功能
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
-        return c;
-    }
-
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        require(b <= a, "SafeMath: subtraction overflow");
-        return a - b;
-    }
-
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        if (a == 0) return 0;
-        uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
-        return c;
-    }
-
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        require(b > 0, "SafeMath: division by zero");
-        return a / b;
-    }
-
     // 计算输出金额
     function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure returns (uint amountOut) {
-        require(amountIn > 0, 'UniswapV2Library: Insufficient fund');
-        require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: Insufficient liquidity');
-        uint amountInWithFee = mul(amountIn, 997);
-        uint numerator = mul(amountInWithFee, reserveOut);
-        uint denominator = add(mul(reserveIn, 1000), amountInWithFee);
-        amountOut = div(numerator, denominator);
+        require(amountIn > 0, "UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT");
+        require(reserveIn > 0 && reserveOut > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
+        
+        uint amountInWithFee = amountIn * 997;
+        uint numerator = amountInWithFee * reserveOut;
+        uint denominator = reserveIn * 1000 + amountInWithFee;
+        
+        // 使用 OpenZeppelin 的 Math.mulDiv 来避免溢出
+        amountOut = Math.mulDiv(numerator, 1, denominator);
     }
 
     // 其他函数...
