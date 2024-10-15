@@ -4,8 +4,9 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract UniswapV2Pair is ERC20 {
+contract UniswapV2Pair is ERC20, ReentrancyGuard {
     using Math for uint;
 
     address public immutable factory;
@@ -17,17 +18,8 @@ contract UniswapV2Pair is ERC20 {
 
     uint public constant MINIMUM_LIQUIDITY = 10**3;
 
-    bool private locked;
-
     constructor() ERC20("UniswapV2 Pair", "UNI-V2") {
         factory = msg.sender;
-    }
-
-    modifier lock() {
-        require(!locked, "UniswapV2: LOCKED");
-        locked = true;
-        _;
-        locked = false;
     }
 
     function initialize(address _token0, address _token1) external {
@@ -37,7 +29,7 @@ contract UniswapV2Pair is ERC20 {
         token1 = _token1;
     }
 
-    function mint(address to) external lock returns (uint liquidity) {
+    function mint(address to) external nonReentrant returns (uint liquidity) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
         uint balance0 = IERC20(token0).balanceOf(address(this));
         uint balance1 = IERC20(token1).balanceOf(address(this));
@@ -46,8 +38,9 @@ contract UniswapV2Pair is ERC20 {
 
         uint _totalSupply = totalSupply();
         if (_totalSupply == 0) {
+            // 初始流动性提供时的特殊情况
             liquidity = Math.sqrt(amount0 * amount1) - MINIMUM_LIQUIDITY;
-            _mint(address(this), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
+            _mint(address(this), MINIMUM_LIQUIDITY); // 永久锁定最小流动性
         } else {
             liquidity = Math.min(amount0 * _totalSupply / _reserve0, amount1 * _totalSupply / _reserve1);
         }
@@ -58,7 +51,7 @@ contract UniswapV2Pair is ERC20 {
         emit Mint(msg.sender, amount0, amount1);
     }
 
-    function burn(address to) external lock returns (uint amount0, uint amount1) {
+    function burn(address to) external nonReentrant returns (uint amount0, uint amount1) {
         uint balance0 = IERC20(token0).balanceOf(address(this));
         uint balance1 = IERC20(token1).balanceOf(address(this));
         uint liquidity = balanceOf(address(this));
@@ -77,14 +70,14 @@ contract UniswapV2Pair is ERC20 {
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
-    function swap(uint amount0Out, uint amount1Out, address to) external lock {
+    function swap(uint amount0Out, uint amount1Out, address to) external nonReentrant {
         require(amount0Out > 0 || amount1Out > 0, "UniswapV2: INSUFFICIENT_OUTPUT_AMOUNT");
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
         require(amount0Out < _reserve0 && amount1Out < _reserve1, "UniswapV2: INSUFFICIENT_LIQUIDITY");
 
         uint balance0;
         uint balance1;
-        { // scope for _token{0,1}, avoids stack too deep errors
+        { // 避免堆栈太深的错误
         address _token0 = token0;
         address _token1 = token1;
         require(to != _token0 && to != _token1, "UniswapV2: INVALID_TO");
@@ -96,7 +89,7 @@ contract UniswapV2Pair is ERC20 {
         uint amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
         uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
         require(amount0In > 0 || amount1In > 0, "UniswapV2: INSUFFICIENT_INPUT_AMOUNT");
-        { // scope for reserve{0,1}Adjusted, avoids stack too deep errors
+        { // 避免堆栈太深的错误
         uint balance0Adjusted = balance0 * 1000 - amount0In * 3;
         uint balance1Adjusted = balance1 * 1000 - amount1In * 3;
         require(balance0Adjusted * balance1Adjusted >= uint(_reserve0) * _reserve1 * (1000**2), "UniswapV2: K");
@@ -118,7 +111,6 @@ contract UniswapV2Pair is ERC20 {
         emit Sync(uint112(reserve0), uint112(reserve1));
     }
 
-    // This low-level function should be called from a contract which performs important safety checks
     function _safeTransfer(address token, address to, uint value) private {
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), "UniswapV2: TRANSFER_FAILED");
