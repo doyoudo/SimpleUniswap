@@ -2,6 +2,7 @@ require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-solhint");
 require("solidity-coverage");
+require("dotenv").config();
 
 module.exports = {
   solidity: {
@@ -16,9 +17,13 @@ module.exports = {
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true
+    },
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL,
+      accounts: [process.env.PRIVATE_KEY]
     }
   },
   etherscan: {
-    apiKey: "IB1SGVHDQRNBUBYJ411ARMS2BRRZZGN31W"
+    apiKey: process.env.ETHERSCAN_API_KEY
   }
 };
